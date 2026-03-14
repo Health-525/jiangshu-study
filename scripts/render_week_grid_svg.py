@@ -170,12 +170,45 @@ def main() -> int:
         w = col_w - 16
         parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="18" fill="{block}" opacity="0.95"/>')
 
-        # Text (2 lines max)
-        title_line = label.split("\n", 1)[0][:10]
-        loc_line = (label.split("\n", 1)[1] if "\n" in label else "")[:12]
-        parts.append(f'<text x="{x+14}" y="{y+32}" fill="#ffffff" font-size="18" font-weight="800" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial">{esc(title_line)}</text>')
-        if loc_line:
-            parts.append(f'<text x="{x+14}" y="{y+56}" fill="#dbeafe" font-size="14" font-weight="600" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial">{esc(loc_line)}</text>')
+        # Text (wrap with <tspan>), try to fit inside block.
+        title_full = label.split("\n", 1)[0].strip()
+        loc_full = (label.split("\n", 1)[1].strip() if "\n" in label else "")
+
+        def wrap(s: str, max_chars: int) -> list[str]:
+            s = s.strip()
+            if not s:
+                return []
+            out = []
+            cur = ""
+            for ch in s:
+                cur += ch
+                if len(cur) >= max_chars:
+                    out.append(cur)
+                    cur = ""
+            if cur:
+                out.append(cur)
+            return out[:3]
+
+        title_lines = wrap(title_full, 9)
+        loc_lines = wrap(loc_full, 12)
+
+        tx = x + 14
+        ty = y + 30
+        parts.append(
+            f'<text x="{tx}" y="{ty}" fill="#ffffff" font-size="18" font-weight="800" '
+            f'font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial">'
+            + "".join([f'<tspan x="{tx}" dy="{0 if i==0 else 22}">{esc(line)}</tspan>' for i, line in enumerate(title_lines)])
+            + "</text>"
+        )
+
+        if loc_lines:
+            lty = ty + 22 * max(1, len(title_lines)) + 6
+            parts.append(
+                f'<text x="{tx}" y="{lty}" fill="#dbeafe" font-size="14" font-weight="600" '
+                f'font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial">'
+                + "".join([f'<tspan x="{tx}" dy="{0 if i==0 else 18}">{esc(line)}</tspan>' for i, line in enumerate(loc_lines)])
+                + "</text>"
+            )
 
     parts.append("</svg>")
     out_path.write_text("\n".join(parts), encoding="utf-8")
