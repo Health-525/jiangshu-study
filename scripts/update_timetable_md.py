@@ -81,36 +81,29 @@ def fmt_day(d: date) -> str:
     return d.isoformat()
 
 
-def generate_week_table(monday: date) -> list[str]:
-    """Generate a single week table (Mon-Sun) with a stable 2-column layout.
+def generate_week_list(monday: date) -> list[str]:
+    """Generate a week view optimized for mobile.
 
-    Columns: 日期 | 安排
-    - Use <br> inside the cell to list multiple classes.
-    - Keep it compact for mobile.
+    Avoid Markdown tables: GitHub mobile wraps columns badly.
+    Output stays consistent: always 7 day bullets; each day has sub-bullets.
     """
 
-    rows: list[tuple[str, str]] = []
+    lines: list[str] = []
     for i in range(7):
         d = monday + timedelta(days=i)
         out = run_query(fmt_day(d))
         _header, courses = parse_courses(out)
 
-        day_label = f"{WEEKDAY_CN[d.weekday()]} {d.strftime('%m-%d')}"
+        day_label = f"{WEEKDAY_CN[d.weekday()]}（{d.strftime('%m-%d')}）"
         if not courses:
-            rows.append((day_label, "无课"))
+            lines.append(f"- {day_label}：无课")
             continue
 
-        items = []
+        lines.append(f"- {day_label}：")
         for time, name, place in courses:
-            place_part = f"@{place}" if place else ""
-            items.append(f"{time} {name}{place_part}".strip())
-        rows.append((day_label, "<br>".join(items)))
+            place_part = f" @ {place}" if place else ""
+            lines.append(f"  - {time} {name}{place_part}")
 
-    lines: list[str] = []
-    lines.append("| 日期 | 安排 |")
-    lines.append("|------|------|")
-    for day_label, cell in rows:
-        lines.append(f"| {day_label} | {cell} |")
     lines.append("")
     return lines
 
@@ -129,14 +122,12 @@ def generate_block() -> str:
 
     lines.append(f"## 今日课表（{header_today}）")
     lines.append("")
-    # Always render the same 3-column table for mobile consistency.
-    lines.append("| 时间 | 课程 | 地点 |")
-    lines.append("|------|------|------|")
     if not courses_today:
-        lines.append("| — | 无课 | — |")
+        lines.append("- 无课")
     else:
         for time, name, place in courses_today:
-            lines.append(f"| {time} | {name} | {place} |")
+            place_part = f" @ {place}" if place else ""
+            lines.append(f"- {time} {name}{place_part}")
     lines.append("")
 
     # This week (Mon-Sun) based on Beijing time
@@ -146,7 +137,7 @@ def generate_block() -> str:
 
     lines.append(f"## 本周课表（{monday.isoformat()} ~ {sunday.isoformat()}）")
     lines.append("")
-    lines.extend(generate_week_table(monday))
+    lines.extend(generate_week_list(monday))
 
     return "\n".join(lines).rstrip() + "\n"
 
