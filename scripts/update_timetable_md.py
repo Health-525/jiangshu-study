@@ -107,11 +107,10 @@ def generate_week_table(monday: date) -> list[str]:
         rows.append((day_label, "<br>".join(items)))
 
     lines: list[str] = []
-    lines.append("| 状态 | 日期 | 安排 |")
-    lines.append("|------|------|------|")
+    lines.append("| 日期 | 安排 |")
+    lines.append("|------|------|")
     for day_label, cell in rows:
-        status = "🟢" if cell != "无课" else "⚪"
-        lines.append(f"| {status} | {day_label} | {cell} |")
+        lines.append(f"| {day_label} | {cell} |")
     lines.append("")
     return lines
 
@@ -131,14 +130,13 @@ def generate_block() -> str:
     lines.append(f"## 今日课表（{header_today}）")
     lines.append("")
     # Always render the same 3-column table for mobile consistency.
-    lines.append("| 状态 | 时间 | 课程 | 地点 |")
-    lines.append("|------|------|------|------|")
+    lines.append("| 时间 | 课程 | 地点 |")
+    lines.append("|------|------|------|")
     if not courses_today:
-        lines.append("| ⚪ 无课 | — | — | — |")
+        lines.append("| — | 无课 | — |")
     else:
-        for idx, (time, name, place) in enumerate(courses_today):
-            status = "🟢 上课" if idx == 0 else ""
-            lines.append(f"| {status} | {time} | {name} | {place} |")
+        for time, name, place in courses_today:
+            lines.append(f"| {time} | {name} | {place} |")
     lines.append("")
 
     # This week (Mon-Sun) based on Beijing time
