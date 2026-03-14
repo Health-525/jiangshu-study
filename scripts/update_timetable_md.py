@@ -54,34 +54,41 @@ def run_today() -> str:
     return p.stdout.strip()
 
 
+def parse_courses(out: str) -> tuple[str, list[tuple[str, str, str]]]:
+    """解析 schedule.py 输出，返回 (header, [(时间, 课程, 地点), ...])"""
+    raw_lines = out.splitlines()
+    header = raw_lines[0] if raw_lines else ""
+    courses: list[tuple[str, str, str]] = []
+    for line in raw_lines[1:]:
+        line = line.strip().lstrip("- ").strip()
+        if "｜" in line:
+            parts = [p.strip() for p in line.split("｜")]
+            time = parts[0] if len(parts) > 0 else ""
+            name = parts[1] if len(parts) > 1 else ""
+            place = parts[2] if len(parts) > 2 else ""
+            courses.append((time, name, place))
+    return header, courses
+
+
 def generate_block() -> str:
     now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
     out = run_today()
+    header, courses = parse_courses(out)
 
     lines: list[str] = []
     lines.append(f"更新时间：**{now}**（北京时间）")
     lines.append("")
-
-    # Put the raw output into a collapsible section for mobile readability.
-    lines.append("## 今日课表")
+    lines.append(f"## 今日课表（{header}）")
     lines.append("")
 
-    # Quick hint line for mobile scanning.
-    if "今天没有课" in out:
-        lines.append("- 结论：**今天没有课**")
-        lines.append("")
+    if not courses:
+        lines.append("**今天没有课 🎉**")
+    else:
+        lines.append("| 时间 | 课程 | 地点 |")
+        lines.append("|------|------|------|")
+        for time, name, place in courses:
+            lines.append(f"| {time} | {name} | {place} |")
 
-    lines.append("<details>")
-    lines.append("<summary>展开查看原始明细</summary>")
-    lines.append("")
-    lines.append("```text")
-    lines.append(out)
-    lines.append("```")
-    lines.append("</details>")
-    lines.append("")
-
-    lines.append("---")
-    lines.append("快捷查询：在飞书对我说 `今天课表` / `明天课表` / `课表 2026-03-20` / `今天下午课表`")
     lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
@@ -92,8 +99,8 @@ def update_file() -> None:
 
     # Always write the full file to avoid stale manual lines.
     replaced = (
-        "# Timetable（自动更新）\n\n"
-        "> 说明：该文件由脚本自动生成/覆盖。请勿手工编辑。\n\n"
+        "# 课程表\n\n"
+        "> 自动更新，请勿手工编辑\n\n"
         + START
         + "\n\n"
         + block
