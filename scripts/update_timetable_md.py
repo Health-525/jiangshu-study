@@ -81,11 +81,25 @@ def fmt_day(d: date) -> str:
     return d.isoformat()
 
 
-def generate_week_list(monday: date) -> list[str]:
-    """Generate a week view optimized for mobile.
+TIME_RE = re.compile(r"(\d{2}:\d{2})")
 
-    Avoid Markdown tables: GitHub mobile wraps columns badly.
-    Output stays consistent: always 7 day bullets; each day has sub-bullets.
+
+def short_time(t: str) -> str:
+    m = TIME_RE.search(t)
+    return m.group(1) if m else t.strip()
+
+
+def shorten_name(name: str, limit: int = 8) -> str:
+    name = name.strip()
+    return name if len(name) <= limit else name[:limit] + "…"
+
+
+def generate_week_list(monday: date) -> list[str]:
+    """Generate a compact week overview (text-first).
+
+    Mobile-friendly: one line per day by default.
+    Format:
+      - 周一 03-09：3节（08:10 大数据；14:00 Python；19:00 数据结…）
     """
 
     lines: list[str] = []
@@ -94,15 +108,13 @@ def generate_week_list(monday: date) -> list[str]:
         out = run_query(fmt_day(d))
         _header, courses = parse_courses(out)
 
-        day_label = f"{WEEKDAY_CN[d.weekday()]}（{d.strftime('%m-%d')}）"
+        day_label = f"{WEEKDAY_CN[d.weekday()]} {d.strftime('%m-%d')}"
         if not courses:
             lines.append(f"- {day_label}：无课")
             continue
 
-        lines.append(f"- {day_label}：")
-        for time, name, place in courses:
-            place_part = f" @ {place}" if place else ""
-            lines.append(f"  - {time} {name}{place_part}")
+        items = [f"{short_time(t)} {shorten_name(n)}" for t, n, _p in courses]
+        lines.append(f"- {day_label}：{len(courses)}节（" + "；".join(items) + "）")
 
     lines.append("")
     return lines
