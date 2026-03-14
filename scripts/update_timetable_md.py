@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -41,9 +41,9 @@ START = "<!-- AUTO-GENERATED:START -->"
 END = "<!-- AUTO-GENERATED:END -->"
 
 
-def run_today() -> str:
+def run_query(q: str) -> str:
     p = subprocess.run(
-        ["python3", str(SCHEDULE_PY), "today"],
+        ["python3", str(SCHEDULE_PY), q],
         cwd=str(TIMETABLE_DIR),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -52,6 +52,10 @@ def run_today() -> str:
     if p.returncode != 0:
         raise RuntimeError((p.stderr or p.stdout).strip() or f"schedule.py exited {p.returncode}")
     return p.stdout.strip()
+
+
+def run_today() -> str:
+    return run_query("today")
 
 
 def parse_courses(out: str) -> tuple[str, list[tuple[str, str, str]]]:
@@ -70,19 +74,24 @@ def parse_courses(out: str) -> tuple[str, list[tuple[str, str, str]]]:
     return header, courses
 
 
-def generate_block() -> str:
-    now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
-    out = run_today()
+WEEKDAY_CN = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+
+def fmt_day(d: date) -> str:
+    return d.isoformat()
+
+
+def generate_day_section(d: date) -> list[str]:
+    out = run_query(fmt_day(d))
     header, courses = parse_courses(out)
 
     lines: list[str] = []
-    lines.append(f"更新时间：**{now}**（北京时间）")
-    lines.append("")
-    lines.append(f"## 今日课表（{header}）")
+    # Heading with weekday + date for quick scanning on mobile
+    lines.append(f"### {WEEKDAY_CN[d.weekday()]}（{d.isoformat()}）")
     lines.append("")
 
     if not courses:
-        lines.append("**今天没有课 🎉**")
+        lines.append("- 无课")
     else:
         lines.append("| 时间 | 课程 | 地点 |")
         lines.append("|------|------|------|")
@@ -90,6 +99,42 @@ def generate_block() -> str:
             lines.append(f"| {time} | {name} | {place} |")
 
     lines.append("")
+    return lines
+
+
+def generate_block() -> str:
+    now = datetime.now(TZ)
+    now_str = now.strftime("%Y-%m-%d %H:%M")
+
+    # Today
+    out_today = run_today()
+    header_today, courses_today = parse_courses(out_today)
+
+    lines: list[str] = []
+    lines.append(f"更新时间：**{now_str}**（北京时间）")
+    lines.append("")
+
+    lines.append(f"## 今日课表（{header_today}）")
+    lines.append("")
+    if not courses_today:
+        lines.append("- 无课")
+    else:
+        lines.append("| 时间 | 课程 | 地点 |")
+        lines.append("|------|------|------|")
+        for time, name, place in courses_today:
+            lines.append(f"| {time} | {name} | {place} |")
+    lines.append("")
+
+    # This week (Mon-Sun) based on Beijing time
+    today = now.date()
+    monday = today - timedelta(days=today.weekday())
+    sunday = monday + timedelta(days=6)
+
+    lines.append(f"## 本周课表（{monday.isoformat()} ~ {sunday.isoformat()}）")
+    lines.append("")
+    for i in range(7):
+        d = monday + timedelta(days=i)
+        lines.extend(generate_day_section(d))
 
     return "\n".join(lines).rstrip() + "\n"
 
