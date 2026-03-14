@@ -134,12 +134,24 @@ def generate_block() -> str:
 
     lines.append(f"## 今日课表（{header_today}）")
     lines.append("")
+
+    # Highlight block (quote) for mobile
+    if not courses_today:
+        lines.append("> 今日：**无课**")
+    else:
+        first_time, first_name, first_place = courses_today[0]
+        fp = f"（{first_place}）" if first_place else ""
+        lines.append(f"> 今日：**{len(courses_today)} 节课**")
+        lines.append(f"> 第一节：{short_time(first_time)} {first_name}{fp}")
+    lines.append("")
+
+    # Details
     if not courses_today:
         lines.append("- 无课")
     else:
         for time, name, place in courses_today:
-            place_part = f" @ {place}" if place else ""
-            lines.append(f"- {time} {name}{place_part}")
+            place_part = f"｜{place}" if place else ""
+            lines.append(f"- {time}｜{name}{place_part}")
     lines.append("")
 
     # This week (Mon-Sun) based on Beijing time
@@ -149,6 +161,21 @@ def generate_block() -> str:
 
     lines.append(f"## 本周课表（{monday.isoformat()} ~ {sunday.isoformat()}）")
     lines.append("")
+
+    # Highlight block for week overview
+    # Summarize days that have classes
+    week_summary = []
+    for i in range(7):
+        d = monday + timedelta(days=i)
+        _h, cs = parse_courses(run_query(fmt_day(d)))
+        if cs:
+            week_summary.append(f"{WEEKDAY_CN[d.weekday()]}{d.strftime('%m-%d')}({len(cs)})")
+    if week_summary:
+        lines.append("> 有课：" + "、".join(week_summary))
+    else:
+        lines.append("> 本周：**全周无课**")
+    lines.append("")
+
     lines.extend(generate_week_list(monday))
 
     return "\n".join(lines).rstrip() + "\n"
