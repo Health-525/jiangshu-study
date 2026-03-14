@@ -81,23 +81,37 @@ def fmt_day(d: date) -> str:
     return d.isoformat()
 
 
-def generate_day_section(d: date) -> list[str]:
-    out = run_query(fmt_day(d))
-    header, courses = parse_courses(out)
+def generate_week_table(monday: date) -> list[str]:
+    """Generate a single table for Mon-Sun.
+
+    Columns: 周/日期 | 课程（按时间顺序换行） | 地点（对应换行）
+    """
+
+    rows: list[tuple[str, str, str]] = []
+    for i in range(7):
+        d = monday + timedelta(days=i)
+        out = run_query(fmt_day(d))
+        _header, courses = parse_courses(out)
+
+        day_label = f"{WEEKDAY_CN[d.weekday()]} {d.strftime('%m-%d')}"
+        if not courses:
+            rows.append((day_label, "无课", "—"))
+            continue
+
+        # Multiline cells: use <br> for GitHub/Markdown mobile readability
+        course_lines = []
+        place_lines = []
+        for time, name, place in courses:
+            course_lines.append(f"{time} {name}".strip())
+            place_lines.append(place or "")
+
+        rows.append((day_label, "<br>".join(course_lines), "<br>".join(place_lines) or "—"))
 
     lines: list[str] = []
-    # Heading with weekday + date for quick scanning on mobile
-    lines.append(f"### {WEEKDAY_CN[d.weekday()]}（{d.isoformat()}）")
-    lines.append("")
-
-    if not courses:
-        lines.append("- 无课")
-    else:
-        lines.append("| 时间 | 课程 | 地点 |")
-        lines.append("|------|------|------|")
-        for time, name, place in courses:
-            lines.append(f"| {time} | {name} | {place} |")
-
+    lines.append("| 日期 | 课程 | 地点 |")
+    lines.append("|------|------|------|")
+    for day_label, ccell, pcell in rows:
+        lines.append(f"| {day_label} | {ccell} | {pcell} |")
     lines.append("")
     return lines
 
@@ -132,9 +146,7 @@ def generate_block() -> str:
 
     lines.append(f"## 本周课表（{monday.isoformat()} ~ {sunday.isoformat()}）")
     lines.append("")
-    for i in range(7):
-        d = monday + timedelta(days=i)
-        lines.extend(generate_day_section(d))
+    lines.extend(generate_week_table(monday))
 
     return "\n".join(lines).rstrip() + "\n"
 
