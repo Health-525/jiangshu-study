@@ -82,12 +82,14 @@ def fmt_day(d: date) -> str:
 
 
 def generate_week_table(monday: date) -> list[str]:
-    """Generate a single table for Mon-Sun.
+    """Generate a single week table (Mon-Sun) with a stable 2-column layout.
 
-    Columns: 周/日期 | 课程（按时间顺序换行） | 地点（对应换行）
+    Columns: 日期 | 安排
+    - Use <br> inside the cell to list multiple classes.
+    - Keep it compact for mobile.
     """
 
-    rows: list[tuple[str, str, str]] = []
+    rows: list[tuple[str, str]] = []
     for i in range(7):
         d = monday + timedelta(days=i)
         out = run_query(fmt_day(d))
@@ -95,23 +97,20 @@ def generate_week_table(monday: date) -> list[str]:
 
         day_label = f"{WEEKDAY_CN[d.weekday()]} {d.strftime('%m-%d')}"
         if not courses:
-            rows.append((day_label, "无课", "—"))
+            rows.append((day_label, "无课"))
             continue
 
-        # Multiline cells: use <br> for GitHub/Markdown mobile readability
-        course_lines = []
-        place_lines = []
+        items = []
         for time, name, place in courses:
-            course_lines.append(f"{time} {name}".strip())
-            place_lines.append(place or "")
-
-        rows.append((day_label, "<br>".join(course_lines), "<br>".join(place_lines) or "—"))
+            place_part = f"@{place}" if place else ""
+            items.append(f"{time} {name}{place_part}".strip())
+        rows.append((day_label, "<br>".join(items)))
 
     lines: list[str] = []
-    lines.append("| 日期 | 课程 | 地点 |")
-    lines.append("|------|------|------|")
-    for day_label, ccell, pcell in rows:
-        lines.append(f"| {day_label} | {ccell} | {pcell} |")
+    lines.append("| 日期 | 安排 |")
+    lines.append("|------|------|")
+    for day_label, cell in rows:
+        lines.append(f"| {day_label} | {cell} |")
     lines.append("")
     return lines
 
@@ -130,11 +129,12 @@ def generate_block() -> str:
 
     lines.append(f"## 今日课表（{header_today}）")
     lines.append("")
+    # Always render the same 3-column table for mobile consistency.
+    lines.append("| 时间 | 课程 | 地点 |")
+    lines.append("|------|------|------|")
     if not courses_today:
-        lines.append("- 无课")
+        lines.append("| — | 无课 | — |")
     else:
-        lines.append("| 时间 | 课程 | 地点 |")
-        lines.append("|------|------|------|")
         for time, name, place in courses_today:
             lines.append(f"| {time} | {name} | {place} |")
     lines.append("")
