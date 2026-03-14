@@ -27,11 +27,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Generate Timetable.md
+      - name: Generate Timetable assets
         env:
           TIMETABLE_DIR: ${{ github.workspace }}/_timetable
         run: |
           python3 scripts/update_timetable_md.py
+          python3 scripts/render_timetable_svg.py
 
       - name: Commit & push if changed
         run: |
@@ -41,6 +42,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Timetable.md
-          git commit -m "chore: auto-update Timetable.md"
+          git add Timetable.md assets/timetable-card.svg
+          git commit -m "chore: auto-update timetable card"
           git push
