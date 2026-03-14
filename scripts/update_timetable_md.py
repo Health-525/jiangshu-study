@@ -94,27 +94,29 @@ def shorten_name(name: str, limit: int = 8) -> str:
     return name if len(name) <= limit else name[:limit] + "…"
 
 
-def generate_week_list(monday: date) -> list[str]:
-    """Generate a compact week overview (text-first).
+def generate_week_lines(monday: date) -> list[str]:
+    """Generate week details WITHOUT any expand/collapse.
 
-    Mobile-friendly: one line per day by default.
-    Format:
-      - 周一 03-09：3节（08:10 大数据；14:00 Python；19:00 数据结…）
+    Best practice for mobile text:
+    - One day per bullet
+    - Each class on its own line (indented)
+    - Avoid overly long single lines
     """
 
     lines: list[str] = []
     for i in range(7):
         d = monday + timedelta(days=i)
-        out = run_query(fmt_day(d))
-        _header, courses = parse_courses(out)
+        _h, courses = parse_courses(run_query(fmt_day(d)))
 
         day_label = f"{WEEKDAY_CN[d.weekday()]} {d.strftime('%m-%d')}"
         if not courses:
             lines.append(f"- {day_label}：无课")
             continue
 
-        items = [f"{short_time(t)} {shorten_name(n)}" for t, n, _p in courses]
-        lines.append(f"- {day_label}：{len(courses)}节（" + "；".join(items) + "）")
+        lines.append(f"- {day_label}：{len(courses)}节")
+        for t, n, p in courses:
+            p_part = f"｜{p}" if p else ""
+            lines.append(f"  - {t}｜{n}{p_part}")
 
     lines.append("")
     return lines
@@ -176,7 +178,7 @@ def generate_block() -> str:
         lines.append("> 本周：**全周无课**")
     lines.append("")
 
-    lines.extend(generate_week_list(monday))
+    lines.extend(generate_week_lines(monday))
 
     return "\n".join(lines).rstrip() + "\n"
 
