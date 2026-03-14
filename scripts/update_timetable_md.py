@@ -59,14 +59,31 @@ def generate_block() -> str:
     out = run_today()
 
     lines: list[str] = []
-    lines.append(f"- Last updated (Beijing Time): **{now}**")
+    lines.append(f"更新时间：**{now}**（北京时间）")
     lines.append("")
+
+    # Put the raw output into a collapsible section for mobile readability.
     lines.append("## 今日课表")
+    lines.append("")
+
+    # Quick hint line for mobile scanning.
+    if "今天没有课" in out:
+        lines.append("- 结论：**今天没有课**")
+        lines.append("")
+
+    lines.append("<details>")
+    lines.append("<summary>展开查看原始明细</summary>")
     lines.append("")
     lines.append("```text")
     lines.append(out)
     lines.append("```")
+    lines.append("</details>")
     lines.append("")
+
+    lines.append("---")
+    lines.append("快捷查询：在飞书对我说 `今天课表` / `明天课表` / `课表 2026-03-20` / `今天下午课表`")
+    lines.append("")
+
     return "\n".join(lines).rstrip() + "\n"
 
 
