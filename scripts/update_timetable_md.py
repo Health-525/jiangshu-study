@@ -37,8 +37,8 @@ SCHEDULE_PY = TIMETABLE_DIR / "schedule.py"
 
 TZ = ZoneInfo("Asia/Shanghai")
 
-START = "<!-- AUTO-GENERATED:START -->"
-END = "<!-- AUTO-GENERATED:END -->"
+# NOTE: Avoid HTML comments markers: some mobile renderers show them literally.
+# We always overwrite the whole file, so markers are unnecessary.
 
 
 def run_query(q: str) -> str:
@@ -186,18 +186,15 @@ def generate_block() -> str:
 def update_file() -> None:
     block = generate_block()
 
-    # Always write the full file to avoid stale manual lines.
+    # Always write the full file (no hidden markers).
     replaced = (
         "# 课程表\n\n"
         "> 自动更新，请勿手工编辑\n\n"
         "## 周课表（每周更新）\n\n"
         "![week-grid](assets/week-grid.svg)\n\n"
+        "---\n\n"
         "## 今日/本周（文字版，每天更新）\n\n"
-        + START
-        + "\n\n"
         + block
-        + "\n"
-        + END
         + "\n"
     )
 
