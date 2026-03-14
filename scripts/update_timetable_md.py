@@ -190,6 +190,9 @@ def update_file() -> None:
     replaced = (
         "# 课程表\n\n"
         "> 自动更新，请勿手工编辑\n\n"
+        "## 周课表（每周更新）\n\n"
+        "![week-grid](assets/week-grid.svg)\n\n"
+        "## 今日/本周（文字版，每天更新）\n\n"
         + START
         + "\n\n"
         + block

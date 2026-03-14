@@ -27,12 +27,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Generate Timetable assets
+      - name: Generate timetable (daily + weekly SVG)
         env:
           TIMETABLE_DIR: ${{ github.workspace }}/_timetable
         run: |
           python3 scripts/update_timetable_md.py
-          python3 scripts/render_timetable_svg.py
+          python3 scripts/render_week_grid_svg.py
 
       - name: Commit & push if changed
         run: |
@@ -42,6 +42,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Timetable.md assets/timetable-card.svg
-          git commit -m "chore: auto-update timetable card"
+          git add Timetable.md assets/week-grid.svg
+          git commit -m "chore: auto-update timetable"
           git push
