@@ -108,17 +108,20 @@ def generate_week_lines(monday: date) -> list[str]:
         d = monday + timedelta(days=i)
         _h, courses = parse_courses(run_query(fmt_day(d)))
 
-        day_label = f"{WEEKDAY_CN[d.weekday()]} {d.strftime('%m-%d')}"
+        day_label = f"{WEEKDAY_CN[d.weekday()]}（{d.strftime('%m-%d')}）"
+        lines.append(f"### {day_label}")
+
         if not courses:
-            lines.append(f"- {day_label}：无课")
+            lines.append("- 无课")
+            lines.append("")
             continue
 
-        lines.append(f"- {day_label}：{len(courses)}节")
+        lines.append(f"- 共 **{len(courses)}** 节")
         for t, n, p in courses:
             p_part = f"｜{p}" if p else ""
-            lines.append(f"  - {t}｜{n}{p_part}")
+            lines.append(f"- {t}｜**{n}**{p_part}")
+        lines.append("")
 
-    lines.append("")
     return lines
 
 
@@ -190,10 +193,6 @@ def update_file() -> None:
     replaced = (
         "# 课程表\n\n"
         "> 自动更新，请勿手工编辑\n\n"
-        "## 周课表（每周更新）\n\n"
-        "![week-grid](assets/week-grid.svg)\n\n"
-        "---\n\n"
-        "## 今日/本周（文字版，每天更新）\n\n"
         + block
         + "\n"
     )
