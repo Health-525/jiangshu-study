@@ -43,6 +43,30 @@ jobs:
           week1 = date.fromisoformat(data['meta']['week1_monday'])
           period_times = data.get('periodTimes', {})
 
+          # 课程简称映射
+          ABBR = {
+              '大数据技术基础': '大数据基础',
+              'Python数据处理与分析': 'Python数据',
+              '数据结构与算法': '数据结构',
+              '多元统计分析': '多元统计',
+              '数值分析': '数值分析',
+              '数学模型与数学软件': '数学模型',
+              '毛泽东思想和中国特色社会主义理论体系概论': '毛概',
+              '马克思主义基本原理': '马原',
+          }
+          def abbr(title: str) -> str:
+              for k, v in ABBR.items():
+                  if k in title:
+                      return v
+              if '体育' in title:
+                  return '体育'
+              return title[:6]
+
+          # 地点简化：去掉括号内容，保留楼栋+房间号
+          def short_loc(loc: str) -> str:
+              loc = re.sub(r'[（(][^）)]*[）)]', '', loc).strip()
+              return loc
+
           def week_index(d: date) -> int:
               return (d - week1).days // 7 + 1
 
@@ -52,7 +76,7 @@ jobs:
                   if not part:
                       continue
                   if '-' in part:
-                      a,b = part.split('-',1)
+                      a, b = part.split('-', 1)
                       if int(a) <= w <= int(b):
                           return True
                   else:
@@ -61,9 +85,9 @@ jobs:
               return False
 
           TIME_RE = re.compile(r'(\d{2}:\d{2})')
-          def start_time(period_or_time: str) -> str:
-              m = TIME_RE.search(period_or_time)
-              return m.group(1) if m else period_or_time.strip()
+          def start_time(s: str) -> str:
+              m = TIME_RE.search(s)
+              return m.group(1) if m else s.strip()
 
           courses = data.get('courses', [])
           now = datetime.now(TZ)
@@ -72,76 +96,71 @@ jobs:
           sunday = monday + timedelta(days=6)
           w = week_index(monday)
 
-          # build day -> list of entries
-          by_day = {i: [] for i in range(1,8)}
+          by_day = {i: [] for i in range(1, 8)}
           for c in courses:
-              if not in_week(c.get('weeks',''), w):
+              if not in_week(c.get('weeks', ''), w):
                   continue
               wd = int(c.get('weekday'))
               periods = [int(x) for x in c.get('periods', [])]
               if not periods:
                   continue
               ps, pe = min(periods), max(periods)
-              t = f"第{ps}-{pe}节 {period_times.get(str(ps),'')[:5]}-{period_times.get(str(pe),'')[-5:]}" if str(ps) in period_times and str(pe) in period_times else f"第{ps}-{pe}节"
-              by_day[wd].append((ps, t, c.get('title',''), c.get('location','')))
+              t = (f"{period_times.get(str(ps),'')[:5]}"
+                   if str(ps) in period_times else f"第{ps}节")
+              by_day[wd].append((ps, t, c.get('title', ''), c.get('location', '')))
 
           for wd in by_day:
               by_day[wd].sort(key=lambda x: x[0])
 
-          # today's weekday mapping: 1=Mon ... 7=Sun
           wd_today = today.weekday() + 1
           today_entries = by_day.get(wd_today, [])
 
+          DAY_NAMES = ['周一','周二','周三','周四','周五','周六','周日']
+
           def day_label(d: date) -> str:
-              wd = ['周一','周二','周三','周四','周五','周六','周日'][d.weekday()]
-              return f"{wd}（{d.strftime('%m-%d')}）"
+              return f"{DAY_NAMES[d.weekday()]}（{d.strftime('%m-%d')}）"
+
+          def render_table(entries: list) -> list[str]:
+              rows = ['| 时间  | 课程       | 地点       |',
+                      '|-------|------------|------------|']
+              for _ps, t, title, loc in entries:
+                  rows.append(f"| {start_time(t)} | {abbr(title)} | {short_loc(loc)} |")
+              return rows
 
           lines = []
-          lines += ['# 课程表', '', '> 自动更新，请勿手工编辑', '']
-          lines += [f"更新时间：**{now.strftime('%Y-%m-%d %H:%M')}**（北京时间）", '']
+          lines += ['# 课程表', '', f"> 更新时间：{now.strftime('%Y-%m-%d %H:%M')}（北京时间）", '']
+          lines += ['---', '']
 
           # 今日
-          header = f"{today.isoformat()}（第{week_index(today)}周 {['周一','周二','周三','周四','周五','周六','周日'][today.weekday()]}）"
-          lines += [f"## 今日课表（{header}）", '']
+          today_label = f"{DAY_NAMES[today.weekday()]}（{today.strftime('%m-%d')}）· 第{week_index(today)}周"
+          lines += [f"## 今日 · {today_label}", '']
           if not today_entries:
-              lines += ["> 今日：**无课**", '', '- 无课', '']
+              lines += ['> 🎉 今日无课', '']
           else:
               first = today_entries[0]
-              lines += [f"> 今日：**{len(today_entries)} 节课**；第一节：**{start_time(first[1])}** {first[2]}（{first[3]}）", '']
-              for _ps, t, title, loc in today_entries:
-                  st = start_time(t)
-                  locp = f"（{loc}）" if loc else ''
-                  lines.append(f"- **{st}** {title}{locp}")
+              lines += [f"> 📌 共 **{len(today_entries)}** 节 · 第一节 **{start_time(first[1])}** {abbr(first[2])}（{short_loc(first[3])}）", '']
+              lines += render_table(today_entries)
               lines.append('')
+          lines += ['---', '']
 
           # 本周
-          lines += [f"## 本周课表（{monday.isoformat()} ~ {sunday.isoformat()}｜第{w}周）", '']
-          # week summary line
-          has = []
-          for i in range(7):
-              d = monday + timedelta(days=i)
-              wd = d.weekday()+1
-              cnt = len(by_day.get(wd, []))
-              if cnt:
-                  has.append(f"{['一','二','三','四','五','六','日'][i]}({cnt})")
-          lines += ["> 有课日：" + ('、'.join(has) if has else '无'), '']
+          has = [f"{['一','二','三','四','五','六','日'][i]}({len(by_day[i+1])})"
+                 for i in range(7) if by_day[i+1]]
+          lines += [f"## 本周 · 第{w}周（{monday.strftime('%m-%d')} ~ {sunday.strftime('%m-%d')}）", '']
+          lines += [f"> 📅 有课日：{'　'.join(has) if has else '无'}", '']
 
           for i in range(7):
               d = monday + timedelta(days=i)
-              wd = d.weekday()+1
+              wd = d.weekday() + 1
               entries = by_day.get(wd, [])
-              lines += [f"### {day_label(d)}", '']
+              lines += ['---', '', f"### {day_label(d)}", '']
               if not entries:
-                  lines += ['- 无课', '']
-                  continue
-              lines += [f"- 共 **{len(entries)}** 节", '']
-              for _ps, t, title, loc in entries:
-                  st = start_time(t)
-                  locp = f"（{loc}）" if loc else ''
-                  lines.append(f"- **{st}** {title}{locp}")
-              lines.append('')
+                  lines += ['> 无课', '']
+              else:
+                  lines += render_table(entries)
+                  lines.append('')
 
-          (repo/'Timetable.md').write_text('\n'.join(lines).rstrip()+'\n', encoding='utf-8')
+          (repo / 'Timetable.md').write_text('\n'.join(lines).rstrip() + '\n', encoding='utf-8')
           PY
 
       - name: Commit & push if changed
